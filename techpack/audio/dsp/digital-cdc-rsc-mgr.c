@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk.h>
@@ -33,7 +34,6 @@ int digital_cdc_rsc_mgr_hw_vote_enable(struct clk* vote_handle)
 	mutex_unlock(&hw_vote_lock);
 
 	pr_debug("%s: return %d\n", __func__, ret);
-	trace_printk("%s: return %d\n", __func__, ret);
 	return ret;
 }
 EXPORT_SYMBOL(digital_cdc_rsc_mgr_hw_vote_enable);
@@ -55,7 +55,7 @@ void digital_cdc_rsc_mgr_hw_vote_disable(struct clk* vote_handle)
 	mutex_lock(&hw_vote_lock);
 	clk_disable_unprepare(vote_handle);
 	mutex_unlock(&hw_vote_lock);
-	trace_printk("%s\n", __func__);
+	pr_debug("%s\n", __func__);
 }
 EXPORT_SYMBOL(digital_cdc_rsc_mgr_hw_vote_disable);
 
@@ -79,7 +79,6 @@ void digital_cdc_rsc_mgr_hw_vote_reset(struct clk* vote_handle)
 		count++;
 	}
 	pr_debug("%s: Vote count after SSR: %d\n", __func__, count);
-	trace_printk("%s: Vote count after SSR: %d\n", __func__, count);
 
 	while (count--)
 		clk_prepare_enable(vote_handle);

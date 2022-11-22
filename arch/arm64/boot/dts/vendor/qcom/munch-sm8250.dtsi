@@ -550,8 +550,6 @@ And public attribution of xiaomi platforms(like L11R and so and)
 	qcom,chg-warm-th= <480>;
 	qcom,chg-cool-th= <150>;
 	//qcom,suspend-input-on-debug-batt;
-	pinctrl-names = "default", "smb5_active", "smb5_suspend";
-	pinctrl-0 = <&vbus_disable_suspend>;
 	qcom,usbpd-phandle = <&pm8150b_pdphy>;
 	qcom,battery-data = <&munch_batterydata>;
 	//mi,fcc-batt-unverify-ua = <2000000>;

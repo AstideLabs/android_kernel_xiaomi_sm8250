@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015-2017, 2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include <linux/module.h>
 #include <linux/init.h>
@@ -1141,8 +1142,10 @@ static int msm_dig_cdc_event_notify(struct notifier_block *block,
 		break;
 	case DIG_CDC_EVENT_SSR_UP:
 		regcache_cache_only(msm_dig_cdc->regmap, false);
-		regcache_mark_dirty(msm_dig_cdc->regmap);
-
+		if ((msm_dig_cdc->regmap) != NULL && (msm_dig_cdc->regmap->lock) != NULL &&
+			(msm_dig_cdc->regmap->lock_arg) != NULL) {
+			regcache_mark_dirty(msm_dig_cdc->regmap);
+		}
 		mutex_lock(&pdata->cdc_int_mclk0_mutex);
 		pdata->digital_cdc_core_clk.enable = 1;
 		ret = afe_set_lpass_clock_v2(
@@ -1156,7 +1159,10 @@ static int msm_dig_cdc_event_notify(struct notifier_block *block,
 		}
 		mutex_unlock(&pdata->cdc_int_mclk0_mutex);
 
-		regcache_sync(msm_dig_cdc->regmap);
+		if ((msm_dig_cdc->regmap) != NULL && (msm_dig_cdc->regmap->lock) != NULL &&
+                        (msm_dig_cdc->regmap->lock_arg) != NULL) {
+			regcache_sync(msm_dig_cdc->regmap);
+		}
 
 		mutex_lock(&pdata->cdc_int_mclk0_mutex);
 		pdata->digital_cdc_core_clk.enable = 0;

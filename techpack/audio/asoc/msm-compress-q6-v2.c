@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 
@@ -3952,7 +3952,7 @@ static int msm_compr_channel_map_put(struct snd_kcontrol *kcontrol,
 
 	pr_debug("%s: fe_id- %llu\n", __func__, fe_id);
 
-	if (fe_id >= MSM_FRONTEND_DAI_MM_SIZE) {
+	if (fe_id >= MSM_FRONTEND_DAI_MAX) {
 		pr_err("%s Received out of bounds fe_id %llu\n",
 			__func__, fe_id);
 		rc = -EINVAL;
@@ -3994,7 +3994,7 @@ static int msm_compr_channel_map_get(struct snd_kcontrol *kcontrol,
 	int rc = 0, i;
 
 	pr_debug("%s: fe_id- %llu\n", __func__, fe_id);
-	if (fe_id >= MSM_FRONTEND_DAI_MM_SIZE) {
+	if (fe_id >= MSM_FRONTEND_DAI_MAX) {
 		pr_err("%s: Received out of bounds fe_id %llu\n",
 			__func__, fe_id);
 		rc = -EINVAL;

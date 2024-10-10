@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2013-2020, Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include <linux/fs.h>
 #include <linux/mutex.h>
@@ -2307,6 +2307,12 @@ static int q6lsm_mmapcallback(struct apr_client_data *data, void *priv)
 			lsm_common.cal_data);
 		lsm_common.set_custom_topology = 1;
 		return 0;
+	}
+
+	if (data->payload_size < (2 * sizeof(uint32_t))) {
+		pr_err("%s: payload has invalid size[%d]\n", __func__,
+			data->payload_size);
+		return -EINVAL;
 	}
 
 	command = payload[0];

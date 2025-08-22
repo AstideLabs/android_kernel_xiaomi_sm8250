@@ -623,7 +623,7 @@ int dp_drm_bridge_init(void *data, struct drm_encoder *encoder)
 	rc = display->request_irq(display);
 	if (rc) {
 		DP_ERR("request_irq failed, rc=%d\n", rc);
-		goto error_free_bridge;
+		goto error;
 	}
 
 	encoder->bridge = &bridge->base;

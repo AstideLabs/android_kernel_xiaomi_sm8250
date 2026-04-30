@@ -228,6 +228,7 @@ static int rouleur_parse_port_mapping(struct device *dev,
 			dev_err(dev, "%s: Invalid port or channel number\n", __func__);
 			goto err_pdata_fail;
 		}
+
 		slave_port_type = dt_array[NUM_SWRS_DT_PARAMS * i + 1];
 		ch_mask = dt_array[NUM_SWRS_DT_PARAMS * i + 2];
 		ch_rate = dt_array[NUM_SWRS_DT_PARAMS * i + 3];

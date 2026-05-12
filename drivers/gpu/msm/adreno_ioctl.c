@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2002,2007-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/slab.h>
@@ -195,7 +195,7 @@ long adreno_ioctl_helper(struct kgsl_device_private *dev_priv,
 	if (i == len)
 		return -ENOIOCTLCMD;
 
-	if (_IOC_SIZE(cmds[i].cmd > sizeof(data))) {
+	if (_IOC_SIZE(cmds[i].cmd) > sizeof(data)) {
 		dev_err_ratelimited(dev_priv->device->dev,
 			"data too big for ioctl 0x%08x: %d/%zu\n",
 			cmd, _IOC_SIZE(cmds[i].cmd), sizeof(data));

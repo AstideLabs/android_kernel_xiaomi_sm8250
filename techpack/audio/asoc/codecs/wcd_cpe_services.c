@@ -988,7 +988,7 @@ static enum cpe_svc_result broadcast_boot_event(
 static enum cpe_process_result cpe_boot_initialize(struct cpe_info *t_info,
 	enum cpe_svc_result *cpe_rc)
 {
-	enum cpe_process_result rc = CPE_SVC_FAILED;
+	enum cpe_process_result rc = CPE_PROC_FAILED;
 	struct cpe_svc_notification payload;
 	struct cmi_core_svc_event_system_boot *p = NULL;
 
@@ -1992,7 +1992,7 @@ enum cmi_api_result cmi_send_msg(void *message)
 		      GFP_ATOMIC);
 	if (!msg) {
 		CPE_SVC_REL_LOCK(&cpe_d.cpe_api_mutex, "cpe_api");
-		return CPE_SVC_NO_MEMORY;
+		return CMI_API_NO_MEMORY;
 	}
 
 	if (CMI_HDR_GET_OBM_FLAG(hdr) == CMI_OBM_FLAG_OUT_BAND)
@@ -2007,7 +2007,7 @@ enum cmi_api_result cmi_send_msg(void *message)
 	if (!msg->payload) {
 		kfree(msg);
 		CPE_SVC_REL_LOCK(&cpe_d.cpe_api_mutex, "cpe_api");
-		return CPE_SVC_NO_MEMORY;
+		return CMI_API_NO_MEMORY;
 	}
 
 	msg->address = 0;

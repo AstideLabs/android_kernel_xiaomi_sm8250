@@ -187,6 +187,11 @@ endif
 
 
 endif
+# Always use the actual .config for embedded IKCONFIG so that runtime config
+# changes (e.g. LTO re-injection by build_kernel.sh Fix C) are reflected in
+# the kernel image instead of the static stock defconfig.
+$(obj)/config_data.gz: $(KCONFIG_CONFIG) FORCE
+
 	$(call if_changed,gzip)
 
       filechk_ikconfiggz = (echo "static const char kernel_config_data[] __used = MAGIC_START"; cat $< | scripts/bin2c; echo "MAGIC_END;")

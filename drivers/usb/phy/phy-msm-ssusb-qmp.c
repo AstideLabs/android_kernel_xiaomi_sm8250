@@ -573,9 +573,16 @@ static int msm_ssphy_qmp_init(struct usb_phy *uphy)
 		goto fail;
 	}
 
-	/* Update the xiaomi modified PHY QMP registers */
-	msm_ssphy_xiaomi_update_write(uphy);
-	msm_ssphy_xiaomi_update_read(uphy);
+	/*
+	 * These Xiaomi overrides target USB3_DP_* registers in the DP-combo
+	 * PHY's 0x3000 MMIO window.  The secondary USB3-only PHY exposes only
+	 * 0x1000 bytes, so applying the same offsets there accesses unmapped
+	 * memory and oopses in this init path.
+	 */
+	if (phy->phy.type == USB_PHY_TYPE_USB3_AND_DP) {
+		msm_ssphy_xiaomi_update_write(uphy);
+		msm_ssphy_xiaomi_update_read(uphy);
+	}
 
 	/* perform software reset of PHY common logic */
 	if (phy->phy.type == USB_PHY_TYPE_USB3_AND_DP &&

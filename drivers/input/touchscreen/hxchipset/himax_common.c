@@ -1937,31 +1937,44 @@ static int himax_power_supply_event(struct notifier_block *nb,
 #endif
 
 #if defined(HX_PEN_DETECT_GLOBAL)
+int himax_get_pen_mode(void)
+{
+	return READ_ONCE(xiaomi_touch_interfaces.touch_mode[Touch_Pen_ENABLE][GET_CUR_VALUE]);
+}
+
+static bool himax_pen_mode_enabled(int pen_mode)
+{
+	return pen_mode == 1 || pen_mode == 17 || pen_mode == 18;
+}
+
 static void himax_pen_supply_work(struct work_struct *work)
 {
-	int ret=0;
-	int pen_connect_flag = xiaomi_touch_interfaces.touch_mode[Touch_Pen_ENABLE][GET_CUR_VALUE];
+	int ret;
+	int pen_mode;
+	int charge_state;
 
-		mutex_lock(&private_ts->pen_supply_lock);
-		if(bTouchIsAwake){
-			if(private_ts->pen_exist != private_ts->pen_is_charge || private_ts->pen_exist == -1){
-				private_ts->pen_exist=private_ts->pen_is_charge;
-				if(pen_connect_flag == 1){
-					ret=g_core_fp.fp_pen_charge_mode_set(private_ts->pen_is_charge);
-				}else{
-					I("Bluetooth is not connected to the stylus, skip the magnetic attraction logic\n");
-				}
-				if(ret<0)
-					E("pen charge mode set fail!!%d\n");
-			}
-		}
-		mutex_unlock(&private_ts->pen_supply_lock);
-		return;
+	mutex_lock(&private_ts->pen_supply_lock);
+	if (!bTouchIsAwake)
+		goto out;
+
+	pen_mode = xiaomi_touch_interfaces.touch_mode[Touch_Pen_ENABLE][GET_CUR_VALUE];
+	charge_state = READ_ONCE(private_ts->pen_is_charge);
+	if (!himax_pen_mode_enabled(pen_mode) ||
+	    private_ts->pen_exist == charge_state)
+		goto out;
+
+	ret = g_core_fp.fp_pen_charge_mode_set(charge_state);
+	if (ret < 0)
+		E("pen charge mode set failed, ret=%d\n", ret);
+	else
+		private_ts->pen_exist = charge_state;
+out:
+	mutex_unlock(&private_ts->pen_supply_lock);
 }
 
 static int himax_pen_supply_notifier_callback(struct notifier_block *self, unsigned long event, void *data)
 {
-	private_ts->pen_is_charge = event;
+	WRITE_ONCE(private_ts->pen_is_charge, event);
 	schedule_work(&private_ts->pen_supply_change_work);
 	return 0;
 }
@@ -3453,6 +3466,14 @@ static void update_touchfeature_value_work(struct work_struct *work) {
 			return;
 		}
 		xiaomi_touch_interfaces.touch_mode[mode_type[i]][GET_CUR_VALUE] = temp_set_value;
+#if defined(HX_PEN_DETECT_GLOBAL)
+		if (mode_type[i] == Touch_Pen_ENABLE) {
+			mutex_lock(&private_ts->pen_supply_lock);
+			private_ts->pen_exist = -1;
+			mutex_unlock(&private_ts->pen_supply_lock);
+			schedule_work(&private_ts->pen_supply_change_work);
+		}
+#endif
 		I("set mode:%d = %d\n", mode_type[i], temp_set_value);
 	}
 
@@ -3582,6 +3603,13 @@ int himax_chip_common_init(void)
 	int err = PROBE_FAIL;
 	struct himax_ts_data *ts = private_ts;
 	struct himax_platform_data *pdata;
+
+#if defined(HX_PEN_DETECT_GLOBAL)
+	mutex_init(&ts->pen_supply_lock);
+	ts->pen_is_charge = 0;
+	ts->pen_exist = -1;
+	INIT_WORK(&ts->pen_supply_change_work, himax_pen_supply_work);
+#endif
 
 	I("Prepare kernel fp\n");
 	kp_getname_kernel = (void *)kallsyms_lookup_name("getname_kernel");
@@ -3859,10 +3887,6 @@ int himax_chip_common_init(void)
 #endif
 
 #if defined(HX_PEN_DETECT_GLOBAL)
-	ts->pen_is_charge = 0;
-	ts->pen_exist= -1;
-	mutex_init(&ts->pen_supply_lock);
-	INIT_WORK(&ts->pen_supply_change_work, himax_pen_supply_work);
 	ts->pen_supply_notifier.notifier_call = himax_pen_supply_notifier_callback;
 	ret = pen_charge_state_notifier_register_client(&ts->pen_supply_notifier);
 	if (ret) {
@@ -4174,10 +4198,6 @@ int himax_chip_common_resume(struct himax_ts_data *ts)
 private_ts->usb_exist = -1;
 queue_work(private_ts ->event_wq, &private_ts ->himax_supply_work);
 
-/*tp anti pen charge interference*/
-private_ts->pen_exist = -1;
-schedule_work(&private_ts->pen_supply_change_work);
-
 /*gesture mode*/
 if(private_ts->gesture_command_delayed >=0){
 	private_ts->db_wakeup = private_ts->gesture_command_delayed;
@@ -4191,6 +4211,13 @@ bTouchIsAwake = 1;
 #ifdef CONFIG_TOUCHSCREEN_XIAOMI_TOUCHFEATURE
 	I("reload the tp mode cmd");
 	himax_tp_mode_recovery();
+#endif
+#if defined(HX_PEN_DETECT_GLOBAL)
+	/* Reapply charge mode after resume restored the touch-feature pen mode. */
+	mutex_lock(&private_ts->pen_supply_lock);
+	private_ts->pen_exist = -1;
+	mutex_unlock(&private_ts->pen_supply_lock);
+	schedule_work(&private_ts->pen_supply_change_work);
 #endif
 END:
 	I("%s: END\n", __func__);

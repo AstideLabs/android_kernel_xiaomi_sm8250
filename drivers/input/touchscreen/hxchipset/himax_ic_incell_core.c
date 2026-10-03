@@ -1181,11 +1181,51 @@ static int himax_touch_handwriting_mode(uint8_t enable)
 
 }
 
+/* The V2 report format is shared by both pen generations.  The controller
+ * also needs its generation-specific scan profile selected independently.
+ */
+static int himax_set_pen_type(uint8_t pen_type)
+{
+	uint8_t tmp_addr[DATA_LEN_4];
+	uint8_t tmp_data[DATA_LEN_4] = {0x8A, 0xA8, 0x8A, 0xA8};
+	uint8_t readback[DATA_LEN_4];
+	int ret = -EIO;
+	int retry;
+
+	if (pen_type != 1 && pen_type != 2)
+		return -EINVAL;
+	if (pen_type == 1)
+		memset(tmp_data, 0, sizeof(tmp_data));
+
+	himax_parse_assign_cmd(pen_type_addr, tmp_addr, DATA_LEN_4);
+	for (retry = 0; retry < 3; retry++) {
+		ret = g_core_fp.fp_register_write(tmp_addr, tmp_data, DATA_LEN_4);
+		if (ret < 0)
+			continue;
+
+		/* Match the controller settling time used by the stock driver. */
+		msleep(30);
+		ret = g_core_fp.fp_register_read(tmp_addr, readback, DATA_LEN_4);
+		if (ret < 0)
+			continue;
+		if (!memcmp(tmp_data, readback, DATA_LEN_4))
+			return 0;
+		ret = -EIO;
+	}
+
+	E("%s: failed to select pen type %u, ret=%d\n",
+	  __func__, pen_type, ret);
+	return ret;
+}
+
 static int himax_set_pen_mode(uint8_t pen_mode)
 {
 	uint8_t tmp_addr[DATA_LEN_4];
 	uint8_t tmp_data[DATA_LEN_4] = {0x8A,0xA8,0x8A,0xA8};
 	int ret = 0;
+	int type_ret = 0;
+	int restriction_ret = 0;
+	int touchfunc_ret = 0;
 	char *envp[2];
 
 	I("%s:  enter \n", __func__);
@@ -1194,13 +1234,23 @@ static int himax_set_pen_mode(uint8_t pen_mode)
 	kobject_uevent_env(&private_ts->dev->kobj, KOBJ_CHANGE, envp);
 	sysfs_notify(&private_ts->dev->kobj, NULL, "pen_connect_strategy");
 
-	pen_mode = (pen_mode == 18 || pen_mode == 17 || pen_mode == 1) ? 1 : 0; // Fix third-party pen support on pipa
+	/* 0x11/0x12 carry the connected pen generation, not just enable. */
+	if (pen_mode == 1 || pen_mode == 17 || pen_mode == 18) {
+		type_ret = himax_set_pen_type(pen_mode == 18 ? 2 : 1);
+		pen_mode = 1;
+	} else {
+		pen_mode = 0;
+	}
 	if(pen_mode == 1)
 		memset(tmp_data,0,DATA_LEN_4);
 
-	ret=himax_touch_handwriting_mode(pen_mode);
+	restriction_ret = himax_touch_handwriting_mode(pen_mode);
 	himax_parse_assign_cmd(pen_mode_touchfunc_addr,tmp_addr,DATA_LEN_4);
-	ret = g_core_fp.fp_register_write(tmp_addr,tmp_data, DATA_LEN_4);
+	touchfunc_ret = g_core_fp.fp_register_write(tmp_addr, tmp_data, DATA_LEN_4);
+	ret = restriction_ret < 0 ? restriction_ret : touchfunc_ret;
+	/* A failed readback must not prevent enabling an otherwise usable pen. */
+	if (type_ret < 0)
+		ret = type_ret;
 
 	I("%s: pen mode switch is %d\n", __func__,pen_mode);
 	return ret;
@@ -1214,6 +1264,8 @@ static int himax_pen_charge_detect_func(int enable)
 	uint8_t tmp_data[DATA_LEN_4] = {0x5A,0xA5,0x5A,0xA5};
 
 	int ret = 0;
+	int mode_ret = 0;
+	int charge_ret = 0;
 	char *envp[2];
 
 	I("%s:  enter \n", __func__);
@@ -1224,10 +1276,15 @@ static int himax_pen_charge_detect_func(int enable)
 	if(enable == 0)
 		memset(tmp_data,0,DATA_LEN_4);
 
-	ret=himax_set_pen_mode(!enable);
+	/* Keep the generation carried by Touch_Pen_ENABLE when undocking.
+	 * Passing only !enable would silently restore the first-generation type.
+	 */
+	mode_ret = himax_set_pen_mode(enable ? 0 :
+		himax_get_pen_mode());
 
 	himax_parse_assign_cmd(pen_charge_detect_addr,tmp_addr,DATA_LEN_4);
-	ret = g_core_fp.fp_register_write(tmp_addr,tmp_data, DATA_LEN_4);
+	charge_ret = g_core_fp.fp_register_write(tmp_addr, tmp_data, DATA_LEN_4);
+	ret = mode_ret < 0 ? mode_ret : charge_ret;
 
 	I("%s: pen charge detect state is %d\n", __func__,enable);
 	return ret;
@@ -1269,7 +1326,14 @@ static int himax_touchfeature_set(uint8_t *touchfeature)
 			ret=himax_set_gesture_mode(touchfeature[1]);
 			break;
 		case Touch_Pen_ENABLE:
-			ret=himax_set_pen_mode(touchfeature[1]);
+#if defined(HX_PEN_DETECT_GLOBAL)
+			/* Serialize profile readback with magnetic charge-mode writes. */
+			mutex_lock(&private_ts->pen_supply_lock);
+#endif
+			ret = himax_set_pen_mode(touchfeature[1]);
+#if defined(HX_PEN_DETECT_GLOBAL)
+			mutex_unlock(&private_ts->pen_supply_lock);
+#endif
 			break;
 		default:
 			E("%s, not support this type\n", __func__);

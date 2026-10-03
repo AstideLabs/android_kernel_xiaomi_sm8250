@@ -497,6 +497,7 @@ enum bin_desc_map_table {
 
 #if defined(HX_PEN_SWITCH)
 	#define pen_mode_touchfunc_addr		0x10007410
+	#define pen_type_addr			0x10007414
 	#define pen_mode_restriction_addr	0x10007FDC
 #endif
 

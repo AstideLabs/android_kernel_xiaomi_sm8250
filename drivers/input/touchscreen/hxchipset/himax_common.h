@@ -552,6 +552,10 @@ extern struct file * (*kp_file_open_name)(struct filename *name,
 			int flags, umode_t mode);
 
 struct himax_core_fp;
+#if defined(HX_PEN_DETECT_GLOBAL)
+int himax_get_pen_mode(void);
+#endif
+
 extern struct himax_core_fp g_core_fp;
 extern struct himax_ts_data *private_ts;
 extern struct himax_ic_data *ic_data;

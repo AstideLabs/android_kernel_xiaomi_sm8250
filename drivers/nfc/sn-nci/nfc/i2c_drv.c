@@ -44,6 +44,7 @@
 #include <linux/delay.h>
 #include <linux/uaccess.h>
 #include <linux/gpio.h>
+#include <linux/regulator/consumer.h>
 #ifdef CONFIG_COMPAT
 #include <linux/compat.h>
 #endif

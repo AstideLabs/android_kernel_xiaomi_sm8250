@@ -25,6 +25,7 @@
 #include <linux/of_gpio.h>
 #include <linux/delay.h>
 #include <linux/pinctrl/qcom-pinctrl.h>
+#include <linux/uaccess.h>
 #include "common.h"
 bool secure_peripheral_not_found = true;
 
@@ -240,7 +241,7 @@ int nfc_misc_register(struct nfc_dev *nfc_dev,
 #else
 int nfc_misc_register(struct nfc_dev *nfc_dev,
 		      const struct file_operations *nfc_fops, int count,
-		      char *devname, const char *classname)
+		      char *devname, char *classname)
 #endif
 {
 	int ret = 0;

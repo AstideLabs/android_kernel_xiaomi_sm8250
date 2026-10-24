@@ -4,7 +4,7 @@
 
 config NXP_NFC_I2C
 	tristate "NXP NCI based NFC I2C Slave Driver for SNxxx"
-	depends on I2C
+	depends on !NFC_NQ && I2C
 	help
 	  This enables the NFC driver for SNxxx based devices.
 	  This is for I2C connected version. NCI protocol logic

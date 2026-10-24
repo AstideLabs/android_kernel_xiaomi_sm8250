@@ -32,8 +32,8 @@
 #ifdef CONFIG_NFC_BOB1
 #include <linux/nvmem-consumer.h>
 #endif
-#include <nfcinfo.h>
-#include <sn_uapi.h>
+#include <linux/nfc/nfcinfo.h>
+#include <uapi/linux/nfc/sn_uapi.h>
 #include "i2c_drv.h"
 #include "ese_cold_reset.h"
 

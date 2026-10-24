@@ -7,7 +7,7 @@
 #ifndef __ESE_COLD_RESET_H
 #define __ESE_COLD_RESET_H
 
-#include <nfcinfo.h>
+#include <linux/nfc/nfcinfo.h>
 
 #define MAX_BUFF_SIZE 264
 

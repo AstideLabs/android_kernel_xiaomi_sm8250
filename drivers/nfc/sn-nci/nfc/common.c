@@ -454,6 +454,8 @@ long nfc_dev_compat_ioctl(struct file *pfile, unsigned int cmd,
 }
 #endif
 
+#define NFC_CLK_REQ_GPIO_WAKEUP
+
 /**
  * nfc_post_init() - Configuraing Ven GPIO and hardware check
  * @nfc_dev:    nfc device data structure

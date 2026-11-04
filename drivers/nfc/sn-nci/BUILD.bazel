@@ -1,0 +1,30 @@
+load("//build/kernel/kleaf:kernel.bzl", "ddk_headers")
+load(":define_modules.bzl", "define_modules")
+
+define_modules("sun", "consolidate")
+define_modules("sun", "perf")
+
+define_modules("canoe", "consolidate")
+define_modules("canoe", "perf")
+
+define_modules("lahaina", "consolidate")
+define_modules("lahaina", "perf")
+
+define_modules("parrot", "consolidate")
+define_modules("parrot", "perf")
+
+define_modules("bengal", "consolidate")
+define_modules("bengal", "perf")
+
+define_modules("waipio", "consolidate")
+define_modules("waipio", "perf")
+
+define_modules("chora", "consolidate")
+define_modules("chora", "perf")
+
+define_modules("malabar", "consolidate")
+define_modules("malabar", "perf")
+
+
+define_modules("shikra", "consolidate")
+define_modules("shikra", "perf")

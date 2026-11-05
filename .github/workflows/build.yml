@@ -53,8 +53,8 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y bc bison build-essential ccache curl flex gawk \
           git gnupg gperf imagemagick libncurses-dev \
-          lib32readline-dev lib32z1-dev liblz4-tool \
-          libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync \
+          lib32readline-dev lib32z1-dev lz4 \
+libsdl1.2-dev libssl-dev libxml2-utils lzop pngcrush rsync \
           schedtool squashfs-tools xsltproc zip zlib1g-dev python3
           
     - name: Cache ccache

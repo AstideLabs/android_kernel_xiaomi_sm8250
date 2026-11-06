@@ -16,7 +16,7 @@ jobs:
   build-matrix:
     name: Build ${{ matrix.device }} | ${{ matrix.ksu && 'KSU' || 'NoKSU' }} (AOSP + MIUI)
     # 关键：不再写 runs-on / steps，直接复用工作流1
-    uses: ./.github/workflows/build.yml
+    uses: ./.github/workflows/build.yaml
     strategy:
       fail-fast: false
       matrix:

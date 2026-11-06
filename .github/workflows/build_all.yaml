@@ -1,0 +1,136 @@
+name: Build All Devices Kernel (Matrix Parallel + Release)
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: 'Publish to GitHub Releases (是否发布到 GitHub Releases)'
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  build-matrix:
+    name: Build ${{ matrix.device }} | ${{ matrix.ksu && 'KSU' || 'NoKSU' }} (AOSP + MIUI)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        device:
+          - alioth
+          - apollo
+          - cas
+          - cmi
+          - dagu
+          - elish
+          - enuma
+          - lmi
+          - munch
+          - pipa
+          - psyche
+          - thyme
+          - umi
+        ksu:
+          - true
+          - false
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc bison build-essential ccache curl flex gawk \
+            git gnupg gperf libncurses-dev libssl-dev libxml2 libxml2-utils \
+            lzop rsync schedtool squashfs-tools xsltproc zip zlib1g-dev \
+            python-is-python3
+
+          mkdir -p ~/.cache/ccache_mikernel
+          ccache -M 10G
+
+      - name: Restore ccache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.cache/ccache_mikernel
+          key: ${{ runner.os }}-kernel-ccache-${{ matrix.device }}-${{ matrix.ksu && 'ksu' || 'noksu' }}-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-kernel-ccache-${{ matrix.device }}-${{ matrix.ksu && 'ksu' || 'noksu' }}-
+            ${{ runner.os }}-kernel-ccache-${{ matrix.device }}-
+            ${{ runner.os }}-kernel-ccache-
+
+      - name: Setup zyc-clang 16 Toolchain
+        run: |
+          mkdir -p $HOME/zyc-clang
+          cd $HOME/zyc-clang
+          wget -q https://github.com/ZyCromerZ/Clang/releases/download/16.0.6-20260807-release/Clang-16.0.6-20260807.tar.gz
+          tar -zxvf Clang-16.0.6-20260807.tar.gz
+
+      - name: Run Build Script
+        run: |
+          chmod +x build_kernel.sh
+          
+          ARGS="${{ matrix.device }}"
+          if [ "${{ matrix.ksu }}" = "true" ]; then
+            ARGS="$ARGS ksu"
+          fi
+          
+          echo "Executing command: ./build_kernel.sh $ARGS"
+          ./build_kernel.sh $ARGS
+
+      - name: Upload Kernel Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: APTKernel-${{ matrix.device }}-${{ matrix.ksu && 'KSU' || 'NoKSU' }}-${{ github.run_id }}
+          path: APTKernel_*.zip
+          compression-level: 0 # 内核刷机包本身已是 zip 格式，无需二次压缩
+
+  release:
+    name: Publish GitHub Release
+    if: ${{ github.event.inputs.publish_release == 'true' || github.event.inputs.publish_release == true }}
+    needs: build-matrix
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Generate Release Info
+        id: vars
+        run: |
+          echo "BUILD_DATE=$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
+          echo "TAG_NAME=v$(date +'%Y%m%d')-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+          echo "SHA_SHORT=${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all_kernels
+          pattern: APTKernel-*-${{ github.run_id }}
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.vars.outputs.TAG_NAME }}
+          name: "APTKernel Build - ${{ steps.vars.outputs.BUILD_DATE }} (${{ steps.vars.outputs.SHA_SHORT }})"
+          body: |
+            ## 自动构建内核发布 / Automated Kernel Release
+            
+            - **构建日期 / Build Date:** ${{ steps.vars.outputs.BUILD_DATE }}
+            - **提交哈希 / Commit SHA:** `${{ steps.vars.outputs.SHA_SHORT }}`
+            - **支持设备 / Supported Devices:** `alioth, apollo, cas, cmi, dagu, elish, enuma, lmi, munch, pipa, psyche, thyme, umi`
+            
+            ---
+            ### 刷机包分类指南 / Flashable ZIP Instructions:
+            - **MIUI**: 适用于原厂 MIUI / HyperOS 或基于 MIUI 修改的第三方 ROM。
+            - **AOSP**: 适用于 LineageOS 等类原生 AOSP ROM。
+            - **ReSukiSU-SuSFS**: 集成 ReSukiSU 与 SuSFS。
+            - **NoKernelSU**: 原版纯净内核，支持自行使用 Magisk 或 APatch 刷入。
+          files: all_kernels/*.zip

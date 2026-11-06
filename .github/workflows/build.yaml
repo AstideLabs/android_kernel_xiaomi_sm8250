@@ -1,6 +1,7 @@
 name: Build Kernel
 
 on:
+  # ① 保留原来的手动触发，单设备调试照旧可用
   workflow_dispatch:
     inputs:
       device:
@@ -37,11 +38,36 @@ on:
           - miui
           - both
 
+  # ② 新增：允许被其他 workflow 调用（workflow_call 不支持 choice，统一用 string）
+  workflow_call:
+    inputs:
+      device:
+        description: 'Target Device Code (设备代号)'
+        required: true
+        type: string
+      ksu:
+        description: 'Enable KernelSU (ReSukiSU)'
+        required: false
+        type: boolean
+        default: false
+      target_os:
+        description: 'Target OS (目标系统)'
+        required: false
+        type: string
+        default: 'both'
+    outputs:
+      artifact_name:
+        description: 'Uploaded artifact name'
+        value: ${{ jobs.build-kernel.outputs.artifact_name }}
+
 jobs:
   build-kernel:
-    name: Build ${{ github.event.inputs.device }} | KSU:${{ github.event.inputs.ksu }} | OS:${{ github.event.inputs.target_os }}
+    name: Build ${{ inputs.device }} | KSU:${{ inputs.ksu }} | OS:${{ inputs.target_os }}
     runs-on: ubuntu-latest
-    
+    # 供调用方（工作流2）读取
+    outputs:
+      artifact_name: APTKernel-${{ inputs.device }}-${{ inputs.target_os }}-${{ inputs.ksu && 'KSU' || 'NoKSU' }}-${{ github.run_id }}
+
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v7
@@ -56,14 +82,16 @@ jobs:
           lib32readline-dev lib32z1-dev liblz4-tool \
           libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync \
           schedtool squashfs-tools xsltproc zip zlib1g-dev python3
-          
+
     - name: Cache ccache
       uses: actions/cache@v6
       with:
         path: ~/.cache/ccache_mikernel
-        key: ${{ runner.os }}-kernel-ccache-${{ github.event.inputs.device }}-${{ github.run_id }}
+        # 矩阵并发时 ksu 与否必须分开，否则会互相抢同一个 cache key
+        key: ${{ runner.os }}-kernel-ccache-${{ inputs.device }}-${{ inputs.ksu && 'ksu' || 'noksu' }}-${{ github.run_id }}
         restore-keys: |
-          ${{ runner.os }}-kernel-ccache-${{ github.event.inputs.device }}-
+          ${{ runner.os }}-kernel-ccache-${{ inputs.device }}-${{ inputs.ksu && 'ksu' || 'noksu' }}-
+          ${{ runner.os }}-kernel-ccache-${{ inputs.device }}-
           ${{ runner.os }}-kernel-ccache-
 
     - name: Setup zyc-clang 16 Toolchain
@@ -76,23 +104,24 @@ jobs:
     - name: Run Build Script
       run: |
         chmod +x _build/build.sh
-        
-        ARGS="${{ github.event.inputs.device }}"
-        
-        if [ "${{ github.event.inputs.ksu }}" == "true" ]; then
+
+        ARGS="${{ inputs.device }}"
+
+        if [ "${{ inputs.ksu }}" == "true" ]; then
           ARGS="$ARGS ksu"
         fi
-        
-        if [ "${{ github.event.inputs.target_os }}" != "both" ]; then
-          ARGS="$ARGS ${{ github.event.inputs.target_os }}"
+
+        if [ "${{ inputs.target_os }}" != "both" ]; then
+          ARGS="$ARGS ${{ inputs.target_os }}"
         fi
-        
+
         echo "Executing command: _build/build.sh $ARGS"
         _build/build.sh $ARGS
 
     - name: Upload Flashable ZIP
       uses: actions/upload-artifact@v7
       with:
-        name: APTKernel-${{ github.event.inputs.device }}-${{ github.event.inputs.target_os }}-${{ github.run_id }}
+        # 关键：名字里必须带上 KSU/NoKSU，否则矩阵里同设备的两个 job 会撞名失败
+        name: APTKernel-${{ inputs.device }}-${{ inputs.target_os }}-${{ inputs.ksu && 'KSU' || 'NoKSU' }}-${{ github.run_id }}
         path: APTKernel_*.zip
         compression-level: 0 # 已经被 zip 压缩过，无需再二次压缩

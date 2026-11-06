@@ -1,0 +1,98 @@
+name: Build Kernel
+
+on:
+  workflow_dispatch:
+    inputs:
+      device:
+        description: 'Target Device Code (设备代号)'
+        required: true
+        default: 'lmi'
+        type: choice
+        options:
+          - alioth
+          - apollo
+          - cas
+          - cmi
+          - dagu
+          - elish
+          - enuma
+          - lmi
+          - munch
+          - pipa
+          - psyche
+          - thyme
+          - umi
+      ksu:
+        description: 'Enable KernelSU (ReSukiSU)'
+        required: true
+        type: boolean
+        default: false
+      target_os:
+        description: 'Target OS (目标系统)'
+        required: true
+        type: choice
+        default: 'both'
+        options:
+          - aosp
+          - miui
+          - both
+
+jobs:
+  build-kernel:
+    name: Build ${{ github.event.inputs.device }} | KSU:${{ github.event.inputs.ksu }} | OS:${{ github.event.inputs.target_os }}
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v7
+      with:
+        fetch-depth: 1
+
+    - name: Set up Environment
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y bc bison build-essential ccache curl flex gawk \
+          git gnupg gperf imagemagick libncurses-dev \
+          lib32readline-dev lib32z1-dev liblz4-tool \
+          libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync \
+          schedtool squashfs-tools xsltproc zip zlib1g-dev python3
+          
+    - name: Cache ccache
+      uses: actions/cache@v6
+      with:
+        path: ~/.cache/ccache_mikernel
+        key: ${{ runner.os }}-kernel-ccache-${{ github.event.inputs.device }}-${{ github.run_id }}
+        restore-keys: |
+          ${{ runner.os }}-kernel-ccache-${{ github.event.inputs.device }}-
+          ${{ runner.os }}-kernel-ccache-
+
+    - name: Setup zyc-clang 16 Toolchain
+      run: |
+        mkdir -p $HOME/zyc-clang
+        cd $HOME/zyc-clang
+        wget -q https://github.com/ZyCromerZ/Clang/releases/download/16.0.6-20260807-release/Clang-16.0.6-20260807.tar.gz
+        tar -zxvf Clang-16.0.6-20260807.tar.gz
+
+    - name: Run Build Script
+      run: |
+        chmod +x _build/build.sh
+        
+        ARGS="${{ github.event.inputs.device }}"
+        
+        if [ "${{ github.event.inputs.ksu }}" == "true" ]; then
+          ARGS="$ARGS ksu"
+        fi
+        
+        if [ "${{ github.event.inputs.target_os }}" != "both" ]; then
+          ARGS="$ARGS ${{ github.event.inputs.target_os }}"
+        fi
+        
+        echo "Executing command: _build/build.sh $ARGS"
+        _build/build.sh $ARGS
+
+    - name: Upload Flashable ZIP
+      uses: actions/upload-artifact@v7
+      with:
+        name: APTKernel-${{ github.event.inputs.device }}-${{ github.event.inputs.target_os }}-${{ github.run_id }}
+        path: APTKernel_*.zip
+        compression-level: 0 # 已经被 zip 压缩过，无需再二次压缩

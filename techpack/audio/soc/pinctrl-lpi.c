@@ -143,6 +143,17 @@ static const char *const lpi_gpio_functions[] = {
 	[LPI_GPIO_FUNC_INDEX_FUNC5]	= LPI_GPIO_FUNC_FUNC5,
 };
 
+#define lpi_gpio_debug_output(m, c, fmt, ...)		\
+do {							\
+	if (m)						\
+		seq_printf(m, fmt, ##__VA_ARGS__);	\
+	else if (c)					\
+		pr_cont(fmt, ##__VA_ARGS__);		\
+	else						\
+		pr_info(fmt, ##__VA_ARGS__);		\
+} while (0)
+
+
 int lpi_pinctrl_runtime_suspend(struct device *dev);
 
 static int lpi_gpio_read(struct lpi_gpio_pad *pad, unsigned int addr)
@@ -516,6 +527,7 @@ int lpi_pinctrl_suspend(struct device *dev)
 {
 	int ret = 0;
 
+	trace_printk("%s: system suspend\n",  __func__);
 	dev_dbg(dev, "%s: system suspend\n", __func__);
 
 	if ((!pm_runtime_enabled(dev) || !pm_runtime_suspended(dev))) {
@@ -552,6 +564,7 @@ static struct notifier_block service_nb = {
 
 static void lpi_pinctrl_ssr_disable(struct device *dev, void *data)
 {
+	trace_printk("%s: enter\n", __func__);
 	lpi_dev_up = false;
 	lpi_pinctrl_suspend(dev);
 }
@@ -603,10 +616,10 @@ static void lpi_gpio_dbg_show_one(struct seq_file *s,
 		 LPI_GPIO_REG_OUT_STRENGTH_SHIFT;
 	pull = (ctl_reg & LPI_GPIO_REG_PULL_MASK) >> LPI_GPIO_REG_PULL_SHIFT;
 
-	seq_printf(s, " %-8s: %-3s %d",
+	lpi_gpio_debug_output(s,1, " %-8s: %-3s %d",
 		   pindesc.name, is_out ? "out" : "in", func);
-	seq_printf(s, " %dmA", lpi_regval_to_drive(drive));
-	seq_printf(s, " %s", pulls[pull]);
+	lpi_gpio_debug_output(s, 1," %dmA", lpi_regval_to_drive(drive));
+	lpi_gpio_debug_output(s,1, " %s", pulls[pull]);
 }
 
 static void lpi_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
@@ -616,7 +629,7 @@ static void lpi_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 
 	for (i = 0; i < chip->ngpio; i++, gpio++) {
 		lpi_gpio_dbg_show_one(s, NULL, chip, i, gpio);
-		seq_puts(s, "\n");
+		lpi_gpio_debug_output(s, 1, "\n");
 	}
 }
 
@@ -876,6 +889,7 @@ int lpi_pinctrl_runtime_resume(struct device *dev)
 	int ret = 0;
 	struct clk *hw_vote = state->lpass_core_hw_vote;
 
+	trace_printk("%s: enter\n", __func__);
 	if (state->lpass_core_hw_vote == NULL) {
 		dev_dbg(dev, "%s: Invalid core hw node\n", __func__);
 		if (state->lpass_audio_hw_vote == NULL) {
@@ -901,6 +915,7 @@ int lpi_pinctrl_runtime_resume(struct device *dev)
 
 exit:
 	mutex_unlock(&state->core_hw_vote_lock);
+	trace_printk("%s: exit\n", __func__);
 	return 0;
 }
 
@@ -909,6 +924,7 @@ int lpi_pinctrl_runtime_suspend(struct device *dev)
 	struct lpi_gpio_state *state = dev_get_drvdata(dev);
 	struct clk *hw_vote = state->lpass_core_hw_vote;
 
+	trace_printk("%s: enter\n", __func__);
 	if (state->lpass_core_hw_vote == NULL) {
 		dev_dbg(dev, "%s: Invalid core hw node\n", __func__);
 		if (state->lpass_audio_hw_vote == NULL) {
@@ -924,6 +940,7 @@ int lpi_pinctrl_runtime_suspend(struct device *dev)
 		state->core_hw_vote_status = false;
 	}
 	mutex_unlock(&state->core_hw_vote_lock);
+	trace_printk("%s: exit\n", __func__);
 	return 0;
 }
 

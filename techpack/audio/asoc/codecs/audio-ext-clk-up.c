@@ -76,6 +76,8 @@ static int audio_ext_clk_prepare(struct clk_hw *hw)
 	if ((clk_priv->clk_src >= AUDIO_EXT_CLK_LPASS) &&
 		(clk_priv->clk_src < AUDIO_EXT_CLK_LPASS_MAX))  {
 		clk_priv->clk_cfg.enable = 1;
+		trace_printk("%s: vote for %d clock\n",
+			__func__, clk_priv->clk_src);
 		ret = afe_set_lpass_clk_cfg(IDX_RSVD_3, &clk_priv->clk_cfg);
 		if (ret < 0) {
 			pr_err_ratelimited("%s afe_set_digital_codec_core_clock failed\n",
@@ -118,6 +120,8 @@ static void audio_ext_clk_unprepare(struct clk_hw *hw)
 	if ((clk_priv->clk_src >= AUDIO_EXT_CLK_LPASS) &&
 		(clk_priv->clk_src < AUDIO_EXT_CLK_LPASS_MAX))  {
 		clk_priv->clk_cfg.enable = 0;
+		trace_printk("%s: unvote for %d clock\n",
+			__func__, clk_priv->clk_src);
 		ret = afe_set_lpass_clk_cfg(IDX_RSVD_3, &clk_priv->clk_cfg);
 		if (ret < 0)
 			pr_err_ratelimited("%s: afe_set_lpass_clk_cfg failed, ret = %d\n",
@@ -152,7 +156,7 @@ static int lpass_hw_vote_prepare(struct clk_hw *hw)
 	int ret;
 
 	if (clk_priv->clk_src == AUDIO_EXT_CLK_LPASS_CORE_HW_VOTE)  {
-		pr_debug("%s: vote for %d clock\n",
+		trace_printk("%s: vote for %d clock\n",
 			__func__, clk_priv->clk_src);
 		ret = afe_vote_lpass_core_hw(AFE_LPASS_CORE_HW_MACRO_BLOCK,
 			"LPASS_HW_MACRO",
@@ -165,7 +169,7 @@ static int lpass_hw_vote_prepare(struct clk_hw *hw)
 	}
 
 	if (clk_priv->clk_src == AUDIO_EXT_CLK_LPASS_AUDIO_HW_VOTE)  {
-		pr_debug("%s: vote for %d clock\n",
+		trace_printk("%s: vote for %d clock\n",
 			__func__, clk_priv->clk_src);
 		ret = afe_vote_lpass_core_hw(AFE_LPASS_CORE_HW_DCODEC_BLOCK,
 			"LPASS_HW_DCODEC",
@@ -186,7 +190,7 @@ static void lpass_hw_vote_unprepare(struct clk_hw *hw)
 	int ret = 0;
 
 	if (clk_priv->clk_src == AUDIO_EXT_CLK_LPASS_CORE_HW_VOTE) {
-		pr_debug("%s: unvote for %d clock\n",
+		trace_printk("%s: unvote for %d clock\n",
 			__func__, clk_priv->clk_src);
 		ret = afe_unvote_lpass_core_hw(
 			AFE_LPASS_CORE_HW_MACRO_BLOCK,
@@ -198,7 +202,7 @@ static void lpass_hw_vote_unprepare(struct clk_hw *hw)
 	}
 
 	if (clk_priv->clk_src == AUDIO_EXT_CLK_LPASS_AUDIO_HW_VOTE) {
-		pr_debug("%s: unvote for %d clock\n",
+		trace_printk("%s: unvote for %d clock\n",
 			__func__, clk_priv->clk_src);
 		ret = afe_unvote_lpass_core_hw(
 			AFE_LPASS_CORE_HW_DCODEC_BLOCK,
